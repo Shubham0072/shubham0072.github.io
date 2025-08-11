@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>My Beats — Music Player</title>
+<meta name="description" content="Music producer beats player — Spotify style" />
+<style>
+  :root{
+    --bg:#0f1114;
+    --panel:#121417;
+    --muted:#9aa0a6;
+    --accent:#1DB954; /* spotify green */
+    --card:#16181b;
+    --glass: rgba(255,255,255,0.03);
+    --radius:12px;
+    --shadow: 0 6px 18px rgba(0,0,0,0.6);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: linear-gradient(180deg,#071017 0%, #0b0d10 100%);
+    color:#e8eef1;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+
+  /* layout */
+  .app{
+    display:grid;
+    grid-template-columns: 280px 1fr;
+    gap:20px;
+    padding:28px;
+    padding-bottom:120px; /* space for bottom player */
+    min-height:calc(100vh - 120px);
+  }
+
+  @media (max-width:880px){
+    .app{grid-template-columns:1fr; padding:16px; padding-bottom:140px}
+  }
+
+  /* sidebar */
+  .sidebar{
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+    border-radius:var(--radius);
+    padding:18px;
+    box-shadow:var(--shadow);
+    height:fit-content;
+  }
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{
+    width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#5bd07a);
+    display:flex;align-items:center;justify-content:center;font-weight:700;color:#04110a;
+    box-shadow: 0 6px 18px rgba(27,185,128,0.12);
+  }
+  .brand h1{font-size:1.05rem;margin:0}
+  .muted{color:var(--muted);font-size:0.9rem;margin-top:6px}
+
+  .nav{margin-top:18px;display:flex;flex-direction:column;gap:8px}
+  .nav button{
+    background:transparent;border:none;color:var(--muted);text-align:left;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;
+  }
+  .nav button:hover{color:#fff;background:var(--glass)}
+
+  /* main */
+  .main{
+    display:flex;flex-direction:column;gap:18px;
+  }
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:12px;
+  }
+  .search{
+    flex:1;display:flex;gap:10px;align-items:center;
+    background:var(--panel);padding:10px;border-radius:10px;
+  }
+  .search input{
+    background:transparent;border:none;outline:none;color:inherit;font-size:0.95rem;width:100%;
+  }
+  .profile{display:flex;gap:12px;align-items:center}
+  .avatar{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#334155,#1f2937);display:flex;align-items:center;justify-content:center;font-weight:700}
+
+  /* playlist */
+  .hero{
+    display:flex;gap:18px;align-items:center;padding:18px;border-radius:14px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+    box-shadow:var(--shadow)
+  }
+  .hero .cover{width:140px;height:140px;border-radius:10px;flex:0 0 140px;background:#222}
+  .hero .meta{flex:1}
+  .hero h2{margin:0 0 6px 0;font-size:1.4rem}
+  .meta p{color:var(--muted);margin:0 0 10px 0}
+
+  .controls{display:flex;align-items:center;gap:12px;margin-top:8px}
+  .btn{
+    background:transparent;border:2px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:10px;color:#fff;cursor:pointer;font-weight:700;
+  }
+  .btn.play{background:var(--accent);color:#042013;border:none;box-shadow:0 8px 26px rgba(29,185,84,0.15)}
+
+  /* track list */
+  .tracks{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+  .track{
+    display:grid;grid-template-columns:56px 1fr 120px;gap:12px;align-items:center;padding:10px;border-radius:10px;background:var(--card);
+  }
+  .track .cover-small{width:56px;height:56px;border-radius:8px;background:#111}
+  .track .meta {display:flex;flex-direction:column}
+  .track .meta .title{font-weight:700}
+  .track .meta .artist{color:var(--muted);font-size:0.9rem}
+  .track .duration{color:var(--muted);text-align:right;font-weight:600}
+
+  .track:hover{transform:translateY(-3px);transition:transform 0.18s ease}
+
+  /* bottom player */
+  .player {
+    position:fixed;left:20px;right:20px;bottom:20px;
+    background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 12px 36px rgba(0,0,0,0.6);
+    backdrop-filter: blur(6px);
+  }
+  @media (max-width:880px){
+    .player{left:12px;right:12px}
+  }
+  .player .mini-cover{width:64px;height:64px;border-radius:8px;background:#111}
+  .player .info{flex:1;display:flex;flex-direction:column;gap:6px}
+  .player .title{font-weight:700}
+  .player .bar{display:flex;flex-direction:column;gap:6px}
+  .progress{
+    width:100%;height:6px;background:rgba(255,255,255,0.06);border-radius:999px;position:relative;overflow:hidden;
+  }
+  .progress > i{position:absolute;left:0;top:0;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#4ee08e)}
+  .time{display:flex;justify-content:space-between;color:var(--muted);font-size:0.85rem}
+
+  .player .controls{display:flex;gap:8px;align-items:center}
+  .icon-btn{width:44px;height:44px;border-radius:10px;background:transparent;border:none;color:#fff;cursor:pointer;font-weight:700}
+  .small{font-size:0.9rem;color:var(--muted)}
+
+  /* search empty */
+  .empty{padding:20px;text-align:center;color:var(--muted);border-radius:10px;background:transparent}
+</style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">MB</div>
+        <div>
+          <h1>My Beats</h1>
+          <div class="muted">Music Producer</div>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Main navigation">
+        <button id="allBtn">All Tracks</button>
+        <button id="likedBtn">Liked</button>
+        <button id="aboutBtn">About</button>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="search" role="search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <input id="searchInput" placeholder="Search tracks, artists or mood..." />
+        </div>
+
+        <div class="profile">
+          <div class="avatar">YS</div>
+        </div>
+      </div>
+
+      <section class="hero" id="hero">
+        <div class="cover" id="heroCover"></div>
+        <div class="meta">
+          <h2 id="heroTitle">My Beats</h2>
+          <p id="heroDesc">A curated collection of my best beats. Click play or add to queue to start listening.</p>
+          <div class="controls">
+            <button class="btn play" id="playAllBtn">Play All</button>
+            <button class="btn" id="shuffleBtn">Shuffle</button>
+            <button class="btn" id="uploadHint">How to add tracks</button>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div id="tracks" class="tracks" aria-live="polite"></div>
+        <div id="empty" class="empty" style="display:none">No tracks found.</div>
+      </section>
+    </main>
+  </div>
+
+  <!-- bottom player -->
+  <div class="player" role="region" aria-label="Music player">
+    <div class="mini-cover" id="miniCover"></div>
+    <div class="info">
+      <div class="title" id="curTitle">Not playing</div>
+      <div class="small" id="curArtist">—</div>
+      <div class="bar">
+        <div class="progress" id="progress"><i></i></div>
+        <div class="time"><span id="curTime">0:00</span><span id="durTime">0:00</span></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="icon-btn" id="prevBtn" title="Previous">⏮</button>
+      <button class="icon-btn" id="playBtn" title="Play / Pause">▶️</button>
+      <button class="icon-btn" id="nextBtn" title="Next">⏭</button>
+      <input id="vol" type="range" min="0" max="1" step="0.01" value="0.9" title="Volume" style="width:90px">
+    </div>
+  </div>
+
+<script>
+/*
+  How to use:
+  - Put this index.html in your repo.
+  - Add a tracks.json (sample below) to the same folder.
+  - Upload referenced mp3 files and cover images.
+  - On GitHub Pages the fetch will work using relative paths.
+*/
+
+let tracks = [];           // loaded from tracks.json
+let currentIndex = -1;
+let audio = new Audio();
+audio.preload = 'metadata';
+const el = {
+  tracks: document.getElementById('tracks'),
+  progressBar: document.getElementById('progress'),
+  progressFill: document.querySelector('#progress > i'),
+  curTime: document.getElementById('curTime'),
+  durTime: document.getElementById('durTime'),
+  curTitle: document.getElementById('curTitle'),
+  curArtist: document.getElementById('curArtist'),
+  miniCover: document.getElementById('miniCover'),
+  heroCover: document.getElementById('heroCover'),
+  heroTitle: document.getElementById('heroTitle'),
+  heroDesc: document.getElementById('heroDesc'),
+  playBtn: document.getElementById('playBtn'),
+  playAllBtn: document.getElementById('playAllBtn'),
+  prevBtn: document.getElementById('prevBtn'),
+  nextBtn: document.getElementById('nextBtn'),
+  vol: document.getElementById('vol'),
+  search: document.getElementById('searchInput'),
+  empty: document.getElementById('empty'),
+  shuffleBtn: document.getElementById('shuffleBtn'),
+  uploadHint: document.getElementById('uploadHint'),
+};
+
+function formatTime(s){
+  if(!isFinite(s)) return '0:00';
+  s = Math.floor(s);
+  const m = Math.floor(s/60);
+  const sec = String(s%60).padStart(2,'0');
+  return `${m}:${sec}`;
+}
+
+function renderTracks(list){
+  el.tracks.innerHTML = '';
+  if(!list.length){
+    el.empty.style.display = 'block';
+    return;
+  }
+  el.empty.style.display = 'none';
+  list.forEach((t, i)=>{
+    const div = document.createElement('div');
+    div.className = 'track';
+    div.innerHTML = `
+      <div class="cover-small" style="background-image:url('${t.cover}'); background-size:cover; background-position:center"></div>
+      <div class="meta">
+        <div class="title">${escapeHtml(t.title)}</div>
+        <div class="artist">${escapeHtml(t.artist)} • <span class="small">${escapeHtml(t.album || '')}</span></div>
+      </div>
+      <div class="duration" data-index="${i}">${t.duration || '—'}</div>
+    `;
+    // click to play
+    div.addEventListener('click', (e)=>{
+      playIndex(i);
+    });
+    // context menu: add-to-queue (optional)
+    div.addEventListener('contextmenu', (ev)=>{
+      ev.preventDefault();
+      alert('Right-click menu: Add to queue (not implemented in this demo).');
+    });
+    el.tracks.appendChild(div);
+  });
+}
+
+function escapeHtml(text){
+  return (text||'').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function setNowPlaying(idx){
+  const t = tracks[idx];
+  el.curTitle.textContent = t.title;
+  el.curArtist.textContent = t.artist;
+  el.miniCover.style.backgroundImage = `url('${t.cover}')`;
+  el.heroCover.style.backgroundImage = `url('${t.cover}')`;
+  el.heroTitle.textContent = t.title;
+  el.heroDesc.textContent = t.description || (t.album || '');
+}
+
+function playIndex(idx){
+  if(idx < 0 || idx >= tracks.length) return;
+  if(currentIndex === idx && !audio.paused){
+    audio.pause();
+    updatePlayButton();
+    return;
+  }
+  currentIndex = idx;
+  audio.src = tracks[idx].src;
+  audio.play().catch(err => console.warn('play failed', err));
+  setNowPlaying(idx);
+  updatePlayButton();
+}
+
+function playNext(){
+  if(tracks.length === 0) return;
+  const next = (currentIndex + 1) % tracks.length;
+  playIndex(next);
+}
+
+function playPrev(){
+  if(tracks.length === 0) return;
+  const prev = (currentIndex - 1 + tracks.length) % tracks.length;
+  playIndex(prev);
+}
+
+function updatePlayButton(){
+  el.playBtn.textContent = audio.paused ? '▶️' : '⏸';
+  el.playAllBtn.textContent = audio.paused ? 'Play All' : 'Pause';
+}
+
+audio.addEventListener('timeupdate', ()=>{
+  const pct = (audio.currentTime / (audio.duration || 1)) * 100;
+  el.progressFill.style.width = pct + '%';
+  el.curTime.textContent = formatTime(audio.currentTime);
+  el.durTime.textContent = formatTime(audio.duration);
+});
+
+audio.addEventListener('ended', ()=>{
+  playNext();
+});
+
+el.playBtn.addEventListener('click', ()=>{
+  if(!audio.src){
+    // start from first
+    playIndex(0);
+  } else if(audio.paused) audio.play(); else audio.pause();
+  updatePlayButton();
+});
+
+el.playAllBtn.addEventListener('click', ()=>{
+  if(audio.paused) {
+    if(currentIndex === -1) playIndex(0); else audio.play();
+  } else audio.pause();
+  updatePlayButton();
+});
+
+el.nextBtn.addEventListener('click', playNext);
+el.prevBtn.addEventListener('click', playPrev);
+
+el.vol.addEventListener('input', (e)=>{
+  audio.volume = parseFloat(e.target.value);
+});
+
+el.progressBar.addEventListener('click', (e)=>{
+  const rect = el.progressBar.getBoundingClientRect();
+  const pct = (e.clientX - rect.left) / rect.width;
+  audio.currentTime = pct * (audio.duration || 0);
+});
+
+el.search.addEventListener('input', (e)=>{
+  const q = e.target.value.trim().toLowerCase();
+  const filtered = tracks.filter(t=>{
+    return [t.title, t.artist, t.album, t.tags].join(' ').toLowerCase().includes(q);
+  });
+  renderTracks(filtered);
+});
+
+el.shuffleBtn.addEventListener('click', ()=>{
+  shuffleTracks();
+});
+
+el.uploadHint.addEventListener('click', ()=>{
+  alert('To add tracks: upload .mp3 files and cover images to the repo, then edit tracks.json and add an entry. See README instructions.');
+});
+
+/* keyboard: space toggles play/pause (if not typing) */
+document.addEventListener('keydown', (e)=>{
+  if(e.code === 'Space' && document.activeElement.tagName !== 'INPUT'){
+    e.preventDefault();
+    if(audio.paused) audio.play(); else audio.pause();
+    updatePlayButton();
+  }
+});
+
+/* fetch the tracks.json located in same folder */
+async function loadTracks(){
+  try{
+    const res = await fetch('tracks.json', {cache: "no-store"});
+    if(!res.ok) throw new Error('tracks.json not found');
+    const data = await res.json();
+    tracks = data.tracks || [];
+    // compute durations if missing (will load metadata)
+    renderTracks(tracks);
+    // optionally pre-load durations (async)
+    await fillDurations(tracks);
+    renderTracks(tracks);
+    // set hero to first cover
+    if(tracks[0]){
+      el.heroCover.style.backgroundImage = `url('${tracks[0].cover}')`;
+      el.heroTitle.textContent = tracks[0].title;
+      el.heroDesc.textContent = tracks[0].description || tracks[0].artist;
+    }
+  }catch(err){
+    console.error(err);
+    el.tracks.innerHTML = '<div class="empty">Could not load tracks.json — make sure it exists and is valid JSON.</div>';
+  }
+}
+
+/* try to load each track's metadata to show duration */
+async function fillDurations(list){
+  for(const t of list){
+    if(t.duration) continue;
+    try{
+      const aud = new Audio();
+      aud.src = t.src;
+      await new Promise((resolve, reject) => {
+        const onloaded = ()=>{ resolve(); cleanup(); };
+        const onerror = ()=>{ reject(); cleanup(); };
+        function cleanup(){ aud.removeEventListener('loadedmetadata', onloaded); aud.removeEventListener('error', onerror); }
+        aud.addEventListener('loadedmetadata', onloaded);
+        aud.addEventListener('error', onerror);
+      });
+      t.duration = formatTime(aud.duration);
+    }catch(e){
+      t.duration = '—';
+    }
+  }
+}
+
+/* shuffle in-place */
+function shuffleTracks(){
+  for(let i = tracks.length -1; i>0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [tracks[i], tracks[j]] = [tracks[j], tracks[i]];
+  }
+  renderTracks(tracks);
+  playIndex(0);
+}
+
+loadTracks();
+</script>
+</body>
+</html>
